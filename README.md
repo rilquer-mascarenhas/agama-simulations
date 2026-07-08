@@ -1,2 +1,3 @@
-# agama-simulations
-Agama simulations
+# Spatial simulations of *Agama boulengeri*
+
+
