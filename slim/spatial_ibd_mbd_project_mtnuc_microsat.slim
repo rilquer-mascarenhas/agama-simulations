@@ -1,0 +1,611 @@
+// Built with Slim version 3.5
+// Modified from recipes: 6.2, 12.5, 13.6, 14.9, 15.1-15.5, 16.9
+// 6 May 2021: edited with some ideas from Manisha A. Munasinghe 
+
+// this will need to be nonWF
+
+// todo: currently on first generation after pop split/initation, slow as crap, failing when p2 comes into effect as well 
+
+initialize() {
+	
+	if(exists("slimgui")) {
+		defineConstant("ibd", 1); // flag -i; ibd toggled on/off 0/1
+		defineConstant("comp", 1); // flag -c; competition toggled on/off 0/1 -- presently this dramatically decreases the K
+		defineConstant("barrier1",1); // flag -B; whether or not to add barrier1 for magenta split
+		defineConstant("barrier2",1); // flag -b; whether or not to add barrier2 for yellow split
+		
+		// ISSUE: for some reason the barrier times are not happening correctly 
+		
+		defineConstant("barrier1gen_un",5); // flag -G; what generation to add barrier1 for magenta split
+		defineConstant("barrier2gen_un",1); // flag -g; what generation to add barrier2 for yellow split
+		defineConstant("females_per_male",3); // flag -X; average number of females per male -- skewing population so only some males mate
+		// DO NOT SET DISPERSAL DISTANCES TO 0.5 OR ABOVE IT CRASHES
+		// gets real slow at and above 0.1
+		defineConstant("dispMale", 0); // flag -M; mean parameter of male disp distance
+		defineConstant("dispFemale", 0); // flag -F; mean parameter of female disp distance
+		defineConstant("dispDevMale",0.04); //flag -m;  stdev parameter
+		defineConstant("dispDevFemale",0.02); // flag -f; stdev parameter
+		defineConstant("outputGen_un",20); //flag -O;  630000 years with 100 gens of burnin?
+		// if scaling these values divergences happen at: 3.3 Ma, 2.6 ma, 6.3 Ma, 1.9 Ma
+		// need to switch yellow and purple pop numbers
+		// so yellow-green+purple split first at 6.3 mya
+		// then green-purple split 3.3 mya 
+		defineConstant("mu_un", 2e-7); // -m; mutation rate
+		// microsat mutation rate is couple orders of mag higher than nonmicrosat rate
+		defineConstant("mu_micro_un", mu_un*10); // -m; mutation rate
+		defineConstant("recomb_un",2e-8); // -r; recombination rate
+		defineConstant("sexRatio",0.5); // flag -x; sex ratio. in normal circumstances, is proportion of males. 
+		defineConstant("scaling",1.0); // from -X, scaling ratio
+		defineConstant("treeSeq",1); // -t, wheter to do tree sequence recording
+		defineConstant("mtSelect",1); // -s, whether to do mitochondrial selection 
+		defineConstant("treeName","output.trees"); // -T
+		defineConstant("msName","output.ms"); // -T
+		defineConstant("locsName","output.locs"); // -T
+		
+		// below here: stuff that is hard-coded most of the time
+		defineConstant("burnin",10); // number of generations of burnin. 		
+		defineGlobal("K_un",c(1970,3950,1580)); // flag -K; carrying capacity for each population
+		// note that the K is usually lower than this when competition is active 
+		defineConstant("L", c(0.7, 0.01, 0.01, 0.01, 0.01, 0.25, 0.5, 1.0)); // life table: high juv mortality, high old adult mortality
+		defineConstant("S1", 0.1); // spatial competition distance -- cannot be 0.5 or above
+		defineConstant("S2", 0.1); // mate distance -- cannot be 0.5 or above
+		// 23 microsats, took max size from each
+		// need to set up so they can recombine independently?
+		loci_sizes = c(230,340,210,160,150,255,125,290,220,130,220,250,160,300,140,320,260,160,220,250,220,180,140);
+		defineConstant("nicheFile","/Users/kprovost/Dropbox (AMNH)/Side_Projects/Goncalves_Slim/lizard_ranges_raster_forslim.asc");
+	
+	} else {
+		// DO
+		// NOT
+		// TOUCH
+		// THESE
+		
+		// if not in the gui, set the hard-coded values
+		
+		defineConstant("burnin",100); // number of generations of burnin. 		
+		defineGlobal("K_un",c(197000,395000,158000)); // flag -K; carrying capacity for each population
+		// note that the K is usually lower than this when competition is active 		
+		defineConstant("L", c(0.7, 0.01, 0.01, 0.01, 0.01, 0.25, 0.5, 1.0)); // life table: high juv mortality, high old adult mortality
+		defineConstant("S1", 0.1); // spatial competition distance -- cannot be 0.5 or above
+		defineConstant("S2", 0.1); // mate distance -- cannot be 0.5 or above
+		// 23 microsats, took max size from each
+		// need to set up so they can recombine independently?
+		loci_sizes = c(230,340,210,160,150,255,125,290,220,130,220,250,160,300,140,320,260,160,220,250,220,180,140);
+		defineConstant("nicheFile","lizard_ranges_raster_forslim.asc");
+	}
+	
+	// IMPLEMENT SCALING	
+	// scale NE -- multiply
+	defineGlobal("K", asInteger(K_un * scaling));
+	// scale mutation -- divide
+	defineConstant("mu",mu_un / scaling);
+	defineConstant("mu_micro", mu_micro_un / scaling);
+	
+	// scale recombination -- complex
+	defineConstant("recomb",0.5*(1-(1-2*recomb_un)^(1/scaling)));
+	// scale generation times -- multiply
+	defineConstant("barrier1gen", asInteger(barrier1gen_un * scaling)+burnin);
+	defineConstant("barrier2gen", asInteger(barrier2gen_un * scaling)+burnin);
+	defineConstant("outputGen", asInteger(outputGen_un * scaling)+burnin);
+	
+	// these parameters can be modified later, determine whether organisms from a specific population can live somewhere or not
+	defineGlobal("good_p1",c(1,2,3));
+	defineGlobal("good_p2",c(3));
+	defineGlobal("good_p3",c(2));
+	
+	initializeSLiMModelType("nonWF");
+	initializeSLiMOptions(dimensionality="xy", periodicity="xy");
+	
+	defineConstant("nicheX",58);
+	defineConstant("nicheY",80);
+	defineConstant("spatialcolors",c("black","blue","green","yellow","magenta"));
+	
+	if(treeSeq==1){
+		initializeTreeSeq(); // turn on tree sequence recording
+	}
+	
+	initializeMutationType("m1", 0.5, "f", 0.0); // normal mutations
+	m1.convertToSubstitution = T;
+	m1.color = 'red';
+	
+	initializeMutationType("m2", 0.5, "f", 0.0); // mtdna marker mutation
+	m2.convertToSubstitution = F;
+	m2.color = 'limegreen';
+	
+	if(mtSelect==1) {
+		initializeMutationType("m3", 0.5, "n", 0.1,0.05); // mtdna selected mutation is positive
+	} else {
+		initializeMutationType("m3", 0.5, "f", 0.0); // mtdna selected mutation is not active
+	}
+	m3.convertToSubstitution = F;
+	m3.color = 'cyan';
+	
+	initializeGenomicElementType("g1", c(m1,m3), c(1.0,0.1)); // mtdna
+	initializeGenomicElementType("g2", m1, 1.0); // autosome
+	
+	// We have 2 genomic elements - Mitochondrial + Nuclear
+	// g1 = mitocondrial, g2 = nuclear/autosomal
+	initializeGenomicElement(g1, 0, 16060);
+	initializeGenomicElement(g2, 16061, 21014);
+	
+	// SET UP THE LOCI MAP FOR BOTH RECOMBINATION AND MUTATION RATE
+	
+	// REMEMBER mtDNA DOES NOT RECOMBINE
+	// set up so the microsats recombine in between
+	// 23 microsats, took max size from each
+	// need to set up so they can recombine independently?
+	ends=c(16060,16061,16291,16292,16632,16633,16843,16844,17004,17005,17155,17156,17411,17412,17537,
+		17538,17828,17829,18049,18050,18180,18181,18401,18402,18652,18653,18813,18814,19114,19115,19255,19256,
+		19576,19577,19837,19838,19998,19999,20219,20220,20470,20471,20691,20692,20872,20873,21013,21014);
+	rates=c(0,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,
+		0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,
+		0.5,recomb,0.5,recomb,0.5,recomb,0.5,recomb,0.5);
+	initializeRecombinationRate(rates,ends); // -flag -R; recomb rate
+	
+	// set up loci map for mutation rate
+	// this will depend on treeSeq 
+	
+	mutends=c(16061,21014);
+	if(treeSeq==0){
+		mutrates=c(mu,mu_micro); // flag -U; mutation rate 
+	} else {
+		// treesequence recording is on, now depends on mtSelect
+		if(mtSelect==0){
+			// if mitochondrial data is not under selection, do not need to do mutation rate
+			mutrates=c(0.0,0.0);
+		} else {
+			// if mtdna is under selection, turn on mutation rate
+			mutrates=c(mu,0.0);
+		}
+	}
+	initializeMutationRate(mutrates,mutends);
+	
+	// according to, 5-11 x 10^-9 across mtDNA, 15 for synonymous and 4 for non-synonymous. 
+	// Eo and DeWoody 2010 Evolutionary rates of mitochondrial genomes correspond to diversification 
+	// rates and to contemporary species richness in birds and reptiles
+	
+	// mutation rate was first assumed to be 0.65% per lineage per Myr, as suggested for agamid 
+	// lizards (Macey et al., 1998), and a generation time of 3 years. However, for a more 
+	// comprehensive analysis, a range of lower rates were also used (0.25% and 0.50% per lineage per Myr) 
+	// and these rates were estimated directly from the p-distances and a dated phylogeny derived 
+	// for the sister family to the Agamidae, the Chamaeleonidae (Tolley et al., 2008): 
+	// FROM Climate Change Drives Speciation in the Southern Rock Agama (Agama atra) in 
+	// the Cape Floristic Region, South Africa; Swart et al 2009		
+	
+	// 16670 bp for Calotes versicolor , The Mitochondrial Genome of the Lizard Calotes versicolor 
+	// and a Novel Gene Inversion in South Asian Draconine Agamids, Amer and Kumazawa 2007. 
+	// 16,060 bp for Phrynocephalus forsythii, Next-generation sequencing yields a nearly 
+	// complete mitochondrial genome of the Forsyth’s toad-headed agama, Phrynocephalus forsythii 
+	// (Reptilia, Squamata, Agamidae), Chen et al 2019. Phyrynocephalus is more closely related 
+	
+	initializeSex("A"); // we are using this to simulate the mtdna as well as autosomes
+	
+	// spatial competition 
+	initializeInteractionType(1, "xy", reciprocal=T, maxDistance=S1);
+	// spatial mate choice  -- when looking for mates
+	initializeInteractionType(2, "xy", reciprocal=T, maxDistance=S2, sexSegregation="MF"); // exerted by males felt by females? 
+
+}
+
+reproduction(p1,"F") {
+	// don't print during reproduction calls, it calls this a lot of times	
+	
+	// most likely need to incorporate skewed male breeding here 
+	// all or most females should breed but only 1/3 of the males should breed?
+	// currently: 1 male for every 3 females. 
+	
+	// only females that have correct mtdna setup here
+	if (individual.age > 1) { // juveniles can't breed
+		allmates=subpop.subsetIndividuals(exclude=individual,sex="M",minAge=2); // juveniles can't breed
+		//print(allmates);
+		validmates = allmates[allmates.tag==1];
+		if (ibd == 1) {
+			closemates=i2.nearestInteractingNeighbors(individual);
+			combomates = setIntersection(allmates,closemates);
+			if(combomates.size()) { mate=sample(combomates,1); // female picks valid mate close to her
+			} else if(validmates.size()) { mate=sample(validmates,1); // female picks one of the valid mates
+			} else { mate=sample(allmates,1); // female picks any mate
+			}
+		}
+		else {
+			
+			if(validmates.size()) { mate=sample(validmates,1); // female picks one of the valid mates
+			} else { mate=sample(allmates,1); // female picks any mate
+			}
+		}
+		litterSize = rpois(1, 9.4);	// average female has 9.4 offspring	
+		for (j in seqLen(litterSize)) {
+			// only offspring that have the correct mtdna setup allowed here
+			offspring = subpop.addCrossed(individual, mate, sexRatio); // must incorporate sex ratio here 
+			while(isNULL(offspring)){
+				offspring = subpop.addCrossed(individual, mate, sexRatio); // LENGTHY; must incorporate sex ratio here 
+			
+			}
+			//print(offspring);
+			if(offspring.sex=="M") {
+				// male-biased dispersal
+				pos = individual.spatialPosition + rnorm(2, dispMale, dispDevMale);
+				pos = p1.pointReflected(p1.pointPeriodic(pos));
+				this_location = subpop.spatialMapValue("map1",pos);
+				while( all(this_location != good_p1))	{
+					
+					pos = individual.spatialPosition + rnorm(2, dispMale, dispDevMale);
+					pos = p1.pointReflected(p1.pointPeriodic(pos));
+					this_location = subpop.spatialMapValue("map1",pos);
+				}
+			} else {
+				pos = individual.spatialPosition + rnorm(2, dispFemale, dispDevFemale);
+				pos = p1.pointReflected(p1.pointPeriodic(pos));
+				this_location = subpop.spatialMapValue("map1",pos);
+				while( all(this_location != good_p1))	{
+					pos = individual.spatialPosition + rnorm(2, dispFemale, dispDevFemale);
+					pos = p1.pointReflected(p1.pointPeriodic(pos));
+					this_location = subpop.spatialMapValue("map1",pos);
+				}
+			}
+			offspring.setSpatialPosition(pos);
+		}
+	}
+}
+
+
+reproduction(p2,"F") {
+	
+	// most likely need to incorporate skewed male breeding here 
+	// all or most females should breed but only 1/3 of the males should breed?
+	// currently: 1 male for every 3 females. 
+	
+	// randomly mark males for mating success per generation? 
+	
+	if (individual.age > 1) { // juveniles can't breed
+		allmates=subpop.subsetIndividuals(exclude=individual,sex="M",minAge=2); // juveniles can't breed
+		validmates = allmates[allmates.tag==1];
+		if (ibd == 1) {
+			closemates=i2.nearestInteractingNeighbors(individual);
+			combomates = setIntersection(allmates,closemates);
+			if(combomates.size()) { mate=sample(combomates,1); // female picks valid mate close to her
+			} else if(validmates.size()) { mate=sample(validmates,1); // female picks one of the valid mates
+			} else { mate=sample(allmates,1); // female picks any mate
+			}
+		}
+		else {
+			
+			if(validmates.size()) { mate=sample(validmates,1); // female picks one of the valid mates
+			} else { mate=sample(allmates,1); // female picks any mate
+			}
+		}
+		
+		
+		litterSize = rpois(1, 9.4);	// average female has 9.4 offspring	
+		for (j in seqLen(litterSize)) {
+			// only offspring that have the correct mtdna setup allowed here
+			offspring = subpop.addCrossed(individual, mate, sexRatio); // must incorporate sex ratio here 
+			while(isNULL(offspring)){
+				offspring = subpop.addCrossed(individual, mate, sexRatio); // LENGTHY; must incorporate sex ratio here 
+			
+			}
+			if (offspring.sex == "M") {
+				// male-biased dispersal
+				pos = individual.spatialPosition + rnorm(2, dispMale, dispDevMale);
+				pos = p2.pointReflected(p2.pointPeriodic(pos));
+				this_location = subpop.spatialMapValue("map1",pos);
+				while( all(this_location != good_p2))	{
+					
+					pos = individual.spatialPosition + rnorm(2, dispMale, dispDevMale);
+					pos = p2.pointReflected(p2.pointPeriodic(pos));
+					this_location = subpop.spatialMapValue("map1",pos);
+				}
+			
+			} else {
+				pos = individual.spatialPosition + rnorm(2, dispFemale, dispDevFemale);
+				this_location = subpop.spatialMapValue("map1",pos);
+				while( all(this_location != good_p2))	{
+					pos = individual.spatialPosition + rnorm(2, dispFemale, dispDevFemale);
+					pos = p2.pointReflected(p2.pointPeriodic(pos));
+					this_location = subpop.spatialMapValue("map1",pos);
+				}
+			}
+			offspring.setSpatialPosition(pos);
+		}
+	}
+}
+
+
+reproduction(p3,"F") {
+	
+	// most likely need to incorporate skewed male breeding here 
+	// all or most females should breed but only 1/3 of the males should breed?
+	// currently: 1 male for every 3 females. 
+	
+	// randomly mark males for mating success per generation? 
+	
+	if (individual.age >= 2) { // juveniles can't breed
+		allmates=subpop.subsetIndividuals(exclude=individual,sex="M",minAge=2); // juveniles can't breed
+		validmates = allmates[allmates.tag==1];
+		if (ibd == 1) {
+			closemates=i2.nearestInteractingNeighbors(individual);
+			combomates = setIntersection(allmates,closemates);
+			if(combomates.size()) { mate=sample(combomates,1); // female picks valid mate close to her
+			} else if(validmates.size()) { mate=sample(validmates,1); // female picks one of the valid mates
+			} else { mate=sample(allmates,1); // female picks any mate
+			}
+		}
+		else {
+			
+			if(validmates.size()) { mate=sample(validmates,1); // female picks one of the valid mates
+			} else { mate=sample(allmates,1); // female picks any mate
+			}
+		}
+		
+		
+		
+		
+		litterSize = rpois(1, 9.4);	// average female has 9.4 offspring	
+		for (j in seqLen(litterSize)) {
+			// only offspring that have the correct mtdna setup allowed here
+			offspring = subpop.addCrossed(individual, mate, sexRatio); // must incorporate sex ratio here 
+			while(isNULL(offspring)){
+				offspring = subpop.addCrossed(individual, mate, sexRatio); // LENGTHY: must incorporate sex ratio here 
+			
+			}
+			if (offspring.sex == "M") {
+				// male-biased dispersal
+				pos = individual.spatialPosition + rnorm(2, dispMale, dispDevMale);
+				pos = p3.pointReflected(p3.pointPeriodic(pos));
+				this_location = subpop.spatialMapValue("map1",pos);
+				while( all(this_location != good_p3))	{
+					
+					pos = individual.spatialPosition + rnorm(2, dispMale, dispDevMale);
+					pos = p3.pointReflected(p3.pointPeriodic(pos));
+					this_location = subpop.spatialMapValue("map1",pos);
+				}
+			
+			} else {
+				pos = individual.spatialPosition + rnorm(2, dispFemale, dispDevFemale);
+				pos = p3.pointReflected(p3.pointPeriodic(pos));
+				this_location = subpop.spatialMapValue("map1",pos);
+				while( all(this_location != good_p3))	{
+					pos = individual.spatialPosition + rnorm(2, dispFemale, dispDevFemale);
+					pos = p3.pointReflected(p3.pointPeriodic(pos));
+					this_location = subpop.spatialMapValue("map1",pos);
+				}
+			}
+			offspring.setSpatialPosition(pos);
+		
+		
+		
+		
+		}
+	}
+	//}
+}
+
+modifyChild()
+{
+	// from Manisha Munasinghe
+	// check mtdNA from female parent not male parent
+	if (!childGenome1.containsMarkerMutation(m2, 0)) // LENGTHY
+		return F;
+	if (childGenome2.containsMarkerMutation(m2, 0))
+		return F;
+	
+	// remove mutations from "male" mtdna
+	childGenome2.removeMutations(childGenome2.mutationsOfType(m1));
+	return T;
+
+}
+
+
+1 early() {
+	catn("setting up subpopulations and map");
+	// setting up subpop1, the map, constraining to the area of the map
+	sim.addSubpop("p1", sum(K), sexRatio);
+	
+	// set up the other two subpopulations in case we need them later
+	sim.addSubpop("p2",0,sexRatio);
+	sim.addSubpop("p3",0,sexRatio);
+	
+	mapLines = (readFile(nicheFile));
+	mapLines = sapply(mapLines, "strsplit(applyValue, ' ');");
+	mapValues = asFloat(mapLines);
+	mapValues = t(matrix(mapValues,nrow=nicheX));
+	//cat(mapValues);
+	sim.subpopulations.defineSpatialMap("map1", "xy", mapValues, interpolate=F,
+		valueRange=c(-1.0, 3.0),colors=spatialcolors);
+	//	for (ind in sim.subpopulations[0].individuals) {
+	//		ind.setSpatialPosition(p1.pointUniform());		
+	//	}
+	
+	// setting up the spatial distribution 
+	p1.individuals.setSpatialPosition(p1.pointUniform(sum(K)));
+	locs=(sim.subpopulations[0].individuals.spatialPosition);
+	number_outofbounds=(length(which((sim.subpopulations[0].spatialMapValue("map1",locs))==-1)));
+	
+	while(number_outofbounds >0){
+		//cat(number_outofbounds,sep=";");
+		these_inds=(sim.subpopulations[0].individuals[which((sim.subpopulations[0].spatialMapValue("map1",locs))==-1)]);
+		these_inds.setSpatialPosition(p1.pointUniform(number_outofbounds));
+		locs=(sim.subpopulations[0].individuals.spatialPosition); // LENGTHY
+		number_outofbounds=(length(which((sim.subpopulations[0].spatialMapValue("map1",locs))==-1)));
+	}
+}
+1 early() {
+	catn("setting up haploid mtDNA");
+	// set up the haploid mitochondria 
+	inds = sim.subpopulations.individuals;
+	mito = inds.genomes[seqAlong(inds) * 2]; // LENGTHY
+	
+	// cannot do this with treeseq recording if age distribution is set already
+	mito.addNewDrawnMutation(m2, 0);
+	
+	//set up mitochondrial mutations for selection
+	//mito.addNewDrawnMutation(m3, 8000);
+	
+	// setting up the age distribution
+	p1.individuals.age = rdunif(sum(K), min=0, max=7);
+
+
+}
+
+1 early() {
+	catn("rescheduling blocks");
+	// all of these already include burnin
+	sim.rescheduleScriptBlock(s3, start=barrier1gen,end=barrier1gen);
+	sim.rescheduleScriptBlock(s4, start=barrier2gen,end=barrier2gen);
+	sim.rescheduleScriptBlock(s5, start=outputGen,end=outputGen);
+
+}
+
+early() {
+	catn("marking males for mating");
+	// randomly mark males for mating success per generation
+	for (i in 0:2) {
+		males = sim.subpopulations[i].subsetIndividuals(sex="M");
+		probability=(1/females_per_male);
+		males.tag=rbinom(length(males),1,probability); // LENGTHY
+	}
+}
+
+early() {
+	catn("carrying out life table, competition, survival");
+	// life table based individual mortality 
+	// for carrying capacity, should do based on where the inds are 
+	
+	//pos = individual.spatialPosition + rnorm(2, dispMale, dispDevMale);
+	//this_location = subpop.spatialMapValue("map1",pos);	
+	
+	for (i in 0:2) {
+		inds = sim.subpopulations[i].individuals;
+		
+		if(length(inds) > 0) {
+			
+			// look at probability of death by age
+			ages = inds.age;
+			mortality = L[ages];
+			survival = 1 - mortality;
+			
+			// evaluate competition
+			if(comp==1){
+				
+				// problem with point periodic again -- out of bounds for a periodic spatial dimension 
+				i1.evaluate();
+				competition = i1.totalOfNeighborStrengths(inds); // LENGTHY
+				competition = (competition + 1) / (PI * S1^2);
+				
+				
+				// need to figure out both competition and survival		
+				inds.fitnessScaling = survival * (K[i] / competition);
+			} else {
+				inds.fitnessScaling = survival;
+			}
+			
+			// density-dependence, factoring in individual mortality
+			sim.subpopulations[i].fitnessScaling = K[i] / (sim.subpopulations[i].individualCount * mean(survival));
+		}
+	}
+
+}
+
+
+late() {
+	
+	//inds = p1.individuals; 
+	//catn(sim.generation + ": " + size(inds) + " (" + max(inds.age) + ")"); 
+	
+	// print our age distribution after mortality 
+	//catn(sim.generation + ": " + paste(sort(p1.individuals.age)));
+	
+	// move around a bit 
+	catn("moving individuals");
+	for (i in 0:2) {
+		inds = sim.subpopulations[i].individuals;
+		if(length(inds)>0){
+			
+			for (ind in inds) {
+				newPos = ind.spatialPosition + runif(2, -0.01, 0.01); // LENGTHY
+			}
+			// then look for mates 
+			
+			if(ibd==1) {
+				i2.evaluate();
+			}
+		
+		}
+	}
+	catn("finishing gen:"+sim.generation);
+}
+
+//1: late() {
+//	
+//	// color individuals according to phenotype -- not need anymore
+//	
+//	// lengthy?
+//	for (i in 0:2) {
+//		
+//		males=sim.subpopulations[i].subsetIndividuals(sex="M");
+//		females=sim.subpopulations[i].subsetIndividuals(sex="F");
+//		males.color="cyan";
+//		females.color="red";
+//	}
+//
+//
+//}
+
+s3 10 early() {
+	catn("splitting individuals across barrier 1");
+	// after the burnin number of generations, make it so that all individuals on land with particular value get added to another population
+	if(barrier1==1){
+		// identify individuals who are in zone "3" and split them
+		locs=(sim.subpopulations[0].individuals.spatialPosition); // LENGTHY
+		inds_to_move=(sim.subpopulations[0].individuals[which((sim.subpopulations[0].spatialMapValue("map1",locs))==3)]);
+		//cat(inds_to_move);
+		p2.takeMigrants(inds_to_move);
+		newgood_p1 = good_p1[which(good_p1!=3)];
+		//cat(newgood_p1);		
+		defineGlobal("good_p1",newgood_p1);
+	}
+}
+
+s4 15 early() {
+	catn("splitting individuals across barrier 2");
+	
+	// after the burnin number of generations, make it so that all individuals on land with particular value get added to another population
+	if(barrier2==1){
+		// identify individuals who are in zone "2" and split them
+		locs=(sim.subpopulations[0].individuals.spatialPosition); // LENGTHY
+		inds_to_move=(sim.subpopulations[0].individuals[which((sim.subpopulations[0].spatialMapValue("map1",locs))==2)]);
+		//cat(inds_to_move);
+		p3.takeMigrants(inds_to_move);
+		newgood_p1 = good_p1[which(good_p1!=2)];
+		//cat(newgood_p1);		
+		defineGlobal("good_p1",newgood_p1);
+	}
+}
+
+s5 2000 late() {
+	catn("generating output");
+	
+	lines = "LOCATIONS OF INDIVIDUALS\nX Y POP\n";
+	for (i in 0:2) {
+		for (ind in sim.subpopulations[i].individuals) {
+			line = paste(c(ind.spatialPosition, " ", i, "\n"), sep="");
+			lines = c(lines, line);
+		}
+	}
+	file = paste(lines, sep="");
+	cat("\nWriting file\n");
+	if (!writeFile(locsName, file))
+		stop("Error writing file.");
+	
+	
+	//sim.outputFull(ages=T); 
+	//sim.outputFixedMutations();
+	
+	if(treeSeq==1) {
+		sim.treeSeqOutput(treeName); // LENGTHY
+	} else {
+		sim.outputMS(msName);
+	}
+}
+
+
