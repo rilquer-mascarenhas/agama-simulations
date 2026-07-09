@@ -5,7 +5,7 @@ This is a repo summarizing the approach and storing the scripts utilized for tes
 ### Scenarios:
 **(aka: what are the hypotheses we are trying to test with [SLiM](https://github.com/messerlab/slim)?)**
 
-We have four scenarios that basically test the relative impact of the landscape, abiotic environment and two alternative explanations for mito-nuclear discordance: male-biased
+We have four scenarios that basically test the relative impact of the landscape, abiotic environment and two alternative explanations for mito-nuclear discordance: male-biased dispersal and mitochondrial lineage selection.
 
 **Scenario 1: Geography only:**
 - Can we observe mito-nuclear discordance from the effect of geography alone responsible for the mitonuclear discordance?
