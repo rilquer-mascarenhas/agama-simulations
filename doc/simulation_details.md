@@ -20,9 +20,14 @@ Carrying capacity is controlled by spatial interactions dictating individual fit
 
 **Modeling scenarios**
 *Scenario 1* (geography only) will consist of a model where dispersal is influenced solely by topography IBR: as mentioned above, a resistance layer based on altitude will be implemented, and areas below a certain value will be inaccessible. Dispersal will be set as to avoid a large number of individuals on the edge of highland areas jumping to neighbouring highland across valleys (this may eventually happen, but it shouldn't be common given what is known about the species biology).
-- Simpler alternative: implement a shapefile of highlands as a binary raster (highland vs valley), instead of a continuous altitude raster. This would remove the need to calculate resistance-based movement, possibly making the script simpler and faster.
+> Simpler alternative: implement a shapefile of highlands as a binary raster (highland vs valley), instead of a continuous altitude raster. This would remove the need to calculate resistance-based movement, possibly making the script simpler and faster.
 
 *Scenario 2* (geography + )
+
+The motivation for scenarios 1 and 2 is to see whether this mito-nuclear discordance can arise solely from space structuring individuals, combined with inheret properties of nuDNA. If our data is best explained by scenarios 1 and/or 2, it suggests that space is structuring mtDNA, and it may structure nuclear, but just nuclear being slow, or having a bigger Ne is enough to create the mit-nuc discordance
+
+> *Scenario 2* may be a lot of extra work without a lot of extra reward.
+
 
 
 Scenario 1, then 2, then 3, then 4
