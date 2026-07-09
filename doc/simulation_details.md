@@ -1,30 +1,18 @@
 ## Simulation details
 
-### Scenarios:
-**(aka: what are the hypotheses we are trying to test with [SLiM](https://github.com/messerlab/slim)?)**
+Simulations will be run in two parts. First, we will simulate individuals across space forward in time utilizing [SLiM](). From these simulations, we will retrieve simulated genealogies, for each scenarios, which reflect dispersal and ecological patterns (e.g., male-biased dispersal will yield spatially restricted mitochondrial genealogies, but widely spread nuclear genealogies). Note that these genealogies do not coalesce into one single ancestor, since they only represent the recent history of population and begin with several individuals occupying space. The goal of SLiM is to record the effect of ecology/space on the shape of genealogy.
 
-We have four scenarios that basically test the relative impact of the landscape, abiotic environment and two alternative explanations for mito-nuclear discordance: male-biased dispersal and mitochondrial lineage selection.
+Genealogies retrieved from SLiM will then be transfered to [msprime](), a coalescent simulator, which will be responsible for 1) coalescing individuals in theses genealogies into one single common ancestral variant, creating a
 
-**Scenario 1: Geography only:**
-- Can we observe mito-nuclear discordance from the effect of geography alone? Geography here means the effect of topography in restricting individual movement and gene flow (i.e., topographic Isolation-by-Resistance). This is something of a null model, to test whether geography is enough to lead to observed patterns.
+This entire process is known as *recapitation*. It basically consists of focusing SLiM on simulating only the aspects of populations that classic backward coalescent simulations can't (i.e., nonWF spatial populations with complex ecologies). Additional details on the concepts and steps behind recapitationn can be found in the [SLiM manual](https://benhaller.com/slim/SLiM_Manual.pdf) and in [Haller et al., 2018](https://doi.org/10.1111/1755-0998.12968).
 
-**Scenario 2: Geography + climatic IBR**
-- Is the observed pattern explained by a combination of the effects of topography and climatic suitability (as dictated by the species's climatic niche)?
+#### Simulations in SLiM
 
-**Scenario 3: Geography + Male-biased dispersal**
-- Male individuals of *A. boulengeri* tend to disperse more than females; this behavior could potentially drive the maintenance of mtDNA divergence (i.e., females lineages don't spread spatially) while keeping the nuclear genome admixed through male dispersal.
+Models in SLiM will be non Wright-Fisher (nonWF) and spatially explicit. Two types of genomic components will be simulated in SLiM: mitochondrial DNA (mtDNa) and nuclear DNA (nuDNA). The mtDNA will exhibit no recombination, while nuDNA will have some possibility of recombination within the marker, given by a recombination rate. The length and recombination rates will be set to match empirical values observed for *Agama* lizards. Additionally, mtDNA will be simulated as haploid component and maternally inheritted, while nuDNA will be diploid and inherited by both parents. This difference between marker inheritance will be set within the `reproduction()` callback.
 
-**Scenario 4: Geography + disruptive selection on mitochondrial lineages**
-- Selective pressures may act on the three separate mitochondrial lineages to keep them differentiated. In this scenario, both male and female individuals move freely through the environment (constrained by topography) but individuals from a lineage have lower fitness when located outside the original range of that lineage.
+Models will be initialized with
 
-**Modeling framework**
-
-Overall approach: SLIM and recapitation in msprime
-
-Genomic components in SLiM
-Two types of chromosomes, mtDNA and nuclear, simulated in SLIM with no genetics and tree sequence recording.
-One non-recombining genealogy for mtDNA. Nuclear DNA will have a recombination rate and possibility of recombination within the marker.
-mtDNA is haploid and maternally inherited, while nuclear DNA is diploid and inherited by both parents
+Spatial models include spatial interaction terms, which determine mating and survival probability.
 
 Spatial modeling in SLiM
 nonWF model
