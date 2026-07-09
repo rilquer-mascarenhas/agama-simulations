@@ -10,22 +10,31 @@ This entire process is known as *recapitation*. It basically consists of focusin
 
 Models in SLiM will be non Wright-Fisher (nonWF) and spatially explicit. Two types of genomic components will be simulated in SLiM: mitochondrial DNA (mtDNa) and nuclear DNA (nuDNA). The mtDNA will exhibit no recombination, while nuDNA will have some possibility of recombination within the marker, given by a recombination rate. The length and recombination rates will be set to match empirical values observed for *Agama* lizards. Additionally, mtDNA will be simulated as haploid component and maternally inheritted, while nuDNA will be diploid and inherited by both parents. This difference between marker inheritance will be set within the `reproduction()` callback.
 
-Models will be initialized with
+**Spatial settings**
+Models will be initialized with individuals uniformly assigned to the species range. In all scenarios, topography plays a role in restricting individual movement, i.e., individuals move easier through areas with similar altitudes (modeled using altitude as a resistance layer in SLiM) and areas below a certain altitude threshold (i.e., valleys) are disproportionately harder to move through. These settings combine to simulate populations adapted to high altitude areas, where valleys form a barrier to dispersal (mimicking species behavior and the genetic structure observed). Mating probability is controled by spatial proximity (i.e., closer individuals have a higher chance of mating), therefore a general IBD signal will emerge in all models. At the end of the reproductive event, both offspring and adult individuals will disperse across space, with dispersal distance drawn from a pre-defined normal distribution.
 
-Spatial models include spatial interaction terms, which determine mating and survival probability.
+**Population ecology**
+Carrying capacity is controlled by spatial interactions dictating individual fitness: individuals in overcrowded areas will exhibit less fitness, mimicking lack of resources, while individuals in sparse areas will have higher fitness. This contributes to keep population size steady across the entire range. Individual longevity is set to 7 years (i.e., individuals can reproduce 7 times before being removed from the population). Sex ratio will be kept at 50%.
 
-Spatial modeling in SLiM
-nonWF model
-spatial model with interaction terms for reproduction
-Dispersal
-How long? 100k generations maybe?
+**Modeling scenarios**
+*Scenario 1* (geography only) will consist of a model where dispersal is only influenced solely by topography IBR: as mentioned above, a resistance layer based on altitude will be implemented, and areas below a certain value will be inaccessible. Dispersal will be set as to avoid a large number of individuals on the edge of highland areas jumping to neighbouring highland across valleys (this may eventually happen, but it shouldn't be common given what is known about the species biology).
 
+*Scenario 2* (geography + 
+
+Scenario 1, then 2, then 3, then 4
+Modeling geography only
 Modeling geography/topography and climatic IBR (just add the SDMs)
 
 Modeling male-biased dispersal
 
 Modeling selection
 For model 4 (modeling selection): Each individual will be assigned to a mtDNA lineage in the beginning of the simulation, based on their spatial location. Each lineage will have a different fitness across space, based on latitude and longitude values. This mimics individuals in each lineage being selected positively at each of the different highlands. Divergence is maintained in the simulation by this selection (if individuals move across, they die, so genealogies don't cross.)
+
+**Duration and recording**
+How long? 100k generations maybe?
+
+#### Simulations in SLiM
+
 
 Recapitation in msprime
 - Scaling Ne to match empirical values
