@@ -30,7 +30,7 @@ Carrying capacity is controlled by spatial interactions dictating individual fit
 
 The motivation for scenarios 1 and 2 is to see whether the observed mito-nuclear discordance can arise solely from space structuring individuals in combination with some inheret properties of nuDNA. In other words, if our data is best explained by scenarios 1 and/or 2, it suggests that space is structuring mtDNA, and even tho it may structure nuDNA to some extent (will depend on simulation results), nuDNA does not exhibit structure primarily due to slower mutation rates, the presence of recombination and overall larger N<sub>E</sub>.
 
-Scenarios 3 and 4 then explore two possible hypotheses for the observe mito-nuclear divergence. This divergence
+Scenarios 3 and 4 then explore two possible hypotheses for the observe mito-nuclear divergence: 1) divergence is kept due to female phylopatry
 
 *Scenario 3* (geography + male-biased dispersal) decreases mean dispersal values for females, in orderdifferent mean dispersal values for males and females, allowing males to disperse more while females would be more phylopatric, leading to higher spatial differentiation in mtDNA genealogies than in nuDNA genealogies.
 
