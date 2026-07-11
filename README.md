@@ -19,4 +19,4 @@ We have four scenarios that basically test the relative impact of the landscape,
 **Scenario 4: Geography + disruptive selection on mitochondrial lineages**
 - Selective pressures may act on the three separate mitochondrial lineages to keep them differentiated. In this scenario, both male and female individuals move freely through the environment (constrained by topography) but individuals from a lineage have lower fitness when located outside the original range of that lineage.
 
-Details for how each scenario is simulated on SLiM and the model-testing approach can be found [here (in progress)](doc/simulation_details.md).
+Additional details on the hypotheses rationale, the simulation mechanics and the model-testing approach can be found [here (in progress)](doc/simulation_details.md).
